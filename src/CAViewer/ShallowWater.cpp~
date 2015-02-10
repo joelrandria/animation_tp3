@@ -1,0 +1,147 @@
+#include "ShallowWater.h"
+
+ShallowWater::ShallowWater()
+  :_waterColor(0, 0, 1),
+   _groundColor(1, 1, 0)
+{
+}
+
+void ShallowWater::initialize(const int DIMX, const int DIMY)
+{
+  m_dimx = DIMX;
+  m_dimy = DIMY;
+
+  m_g.init(DIMX, DIMY);
+  m_g.setAll(0);
+
+  initializeWaterLevel();
+
+  m_vX.init(DIMX, DIMY);
+  m_vX.setAll(0);
+  m_vY.init(DIMX, DIMY);
+  m_vY.setAll(0);
+}
+void ShallowWater::initializeWaterLevel()
+{
+  int x;
+  int y;
+
+  m_h.init(m_dimx, m_dimy);
+  m_h.setAll(1);
+
+  ///////////////////////////////////////////////////////////////////////////////////////
+
+  m_h(50, 50) = 10;
+
+  ///////////////////////////////////////////////////////////////////////////////////////
+
+  m_n.init(m_dimx, m_dimy);
+  for (x = 0; x < m_dimx; ++x)
+    for (y = 0; y < m_dimy; ++y)
+      m_n(x, y) = m_h(x, y) - m_g(x, y);
+}
+
+void ShallowWater::draw() const
+{
+  drawHeightArray(m_g, _groundColor);
+  drawHeightArray(m_h, _waterColor);
+}
+void ShallowWater::drawHeightArray(const Array2D& array, const math::Vec3<float> color) const
+{
+  uint x;
+  uint y;
+
+  glBegin(GL_LINE_LOOP);
+  glColor3f(color.r, color.g, color.b);
+
+  for (y = 0; y < (m_dimy - 1); ++y)
+  {
+    for (x = 0; x < (m_dimx - 1); ++x)
+    {
+      glVertex3f(x, array(x, y), y);
+      glVertex3f(x + 1, array(x + 1, y), y);
+      glVertex3f(x + 1, array(x + 1, y + 1), y + 1);
+      glVertex3f(x, array(x, y + 1), y + 1);
+    }
+  }
+
+  glEnd();
+}
+
+void ShallowWater::animate(float elapsedMilliseconds)
+{
+  Array2D advectedN;
+  Array2D advectedVx;
+  Array2D advectedVy;
+
+  const float dt = 1.0f / elapsedMilliseconds;
+
+  advect(m_n, m_vX, m_vY, dt, advectedN);
+  advect(m_vX, m_vX, m_vY, dt, advectedVx);
+  advect(m_vY, m_vX, m_vY, dt, advectedVy);
+
+  m_n = advectedN;
+  m_vX = advectedVx;
+  m_vY = advectedVy;
+
+  updateHeights(m_n, m_vX, m_vY, dt);
+
+  m_h = m_n + m_g;
+
+  updateVelocities(m_h, m_vX, m_vY, dt);
+}
+
+void ShallowWater::advect(const Array2D& src, const Array2D& vx, const Array2D& vy, const float dt, Array2D& dst)
+{
+  int x;
+  int y;
+
+  float advectx;
+  float advecty;
+
+  for (x = 1; x < (m_dimx - 1); ++x)
+  {
+    for (y = 1; y < (m_dimy - 1); ++y)
+    {
+      advectx = x - dt * vx(x, y);
+      advecty = y - dt * vy(x, y);
+
+      dst(x, y) = src.interpolate(advectx, advecty);
+    }
+  }
+}
+
+void ShallowWater::updateHeights(Array2D& heights, const Array2D& vx, const Array2D& vy, const float dt)
+{
+  int x;
+  int y;
+
+  for (x = 1; x < (m_dimx - 1); ++x)
+  {
+    for (y = 1; y < (m_dimy - 1); ++y)
+    {
+      // n(i, j) = n(i, j) - n(i, j) . Dt . ((vx(i+1, j)−vx(i, j))/ Dx + (vy(i, j+1)−vy(i, j)) / Dy)
+
+      heights(x, y) = heights(x, y) - (heights(x, y) * dt * ((vx(x + 1, y) - vx(x, y)) + (vy(x, y + 1) - vy(x, y))));
+    }
+  }
+}
+void ShallowWater::updateVelocities(const Array2D& heights, Array2D& vx, Array2D& vy, const float dt)
+{
+  int x;
+  int y;
+
+  const float a = 9.81f;
+
+  for (x = 1; x < (m_dimx - 1); ++x)
+  {
+    for (y = 1; y < (m_dimy - 1); ++y)
+    {
+      // vx(i, j) += a . Dt . (h(i−1, j)−h(i, j)) / Dx )
+      // vy(i, j) += a . Dt . (h(i, j−1)−h(i, j)) / Dy )
+
+      vx(x, y) += a * dt * (heights(x - 1, y) - heights(x, y));
+      vy(x, y) += a * dt * (heights(x, y - 1) - heights(x, y));
+    }
+  }
+}

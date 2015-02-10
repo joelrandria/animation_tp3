@@ -1,0 +1,80 @@
+#ifndef __SHALLOWWATER_H__
+#define __SHALLOWWATER_H__
+
+#include "Array2D.hpp"
+
+#include <glut.h>
+#include <GL/gl.h>
+#include <GL/glu.h>
+
+class ShallowWater
+{
+protected:
+
+  int m_dimx;
+  int m_dimy;
+
+  Array2D m_g;     // height of the ground (0 if flat)
+  Array2D m_h;     // height of the water : the thing to compute and to draw
+  Array2D m_n;     // m_n = m_h - m_g : amount of water above the ground
+  Array2D m_vX;    // velocity along X
+  Array2D m_vY;    // velocity along Y
+
+public:
+
+  ShallowWater(){}
+
+  void init(const int DIMX, const int DIMY)
+  {
+    m_dimx = DIMX;
+    m_dimy = DIMY;
+
+    m_g.init(DIMX, DIMY);
+    m_g.setAll(0);
+
+    m_h.init(DIMX, DIMY);
+    m_h.setAll(1);
+
+    m_n.init(DIMX, DIMY);
+    m_n.setAll(1);
+
+    m_vX.init(DIMX, DIMY);
+    m_vX.setAll(0);
+
+    m_vY.init(DIMX, DIMY);
+    m_vY.setAll(0);
+  }
+
+  void draw() const
+  {
+    drawGround();
+    drawWater();
+  }
+  void drawGround() const
+  {
+    uint x;
+    uint y;
+
+    glBegin(GL_LINE_LOOP);
+    for (y = 0; y < (m_dimy - 1); ++y)
+    {
+      for (x = 0; x < (m_dimx - 1); ++x)
+      {
+	glVertex3f(x, 0, y);
+	glVertex3f(x + 1, 0, y);
+	glVertex3f(x + 1, 0, y + 1);
+      }
+    }
+    glEnd();
+  }
+  void drawWater() const
+  {
+    
+  }
+
+  void computeOneStep()
+  {
+  }
+};
+
+#endif
